@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fractal Diver - Gothic Sun</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #000; font-family: sans-serif; }
+        canvas { display: block; }
+        
+        /* Top Bar */
+        #top-bar {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            display: flex;
+            gap: 10px;
+            z-index: 100;
+            width: calc(100% - 20px);
+            pointer-events: none; 
+        }
+
+        .top-btn {
+            background: rgba(15, 15, 15, 0.9);
+            border: 1px solid #555;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            backdrop-filter: blur(5px);
+            transition: background 0.2s;
+            pointer-events: auto;
+            white-space: nowrap;
+        }
+        .top-btn:hover { background: #333; }
+
+        .status {
+            font-family: monospace;
+            color: #38bdf8;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            background: rgba(30, 41, 59, 0.9);
+            padding: 0 12px;
+            border-radius: 6px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(5px);
+            pointer-events: auto;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .stat-item { display: flex; gap: 4px; }
+        .stat-label { color: #94a3b8; }
+
+        /* Compact UI Panel */
+        #ui-panel {
+            position: absolute;
+            top: 55px;
+            left: 10px;
+            background: rgba(10, 10, 10, 0.85);
+            padding: 12px;
+            border-radius: 8px;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            width: 300px;
+            box-sizing: border-box;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            transition: opacity 0.2s, transform 0.2s;
+            transform-origin: top left;
+            z-index: 99;
+            max-height: calc(100vh - 80px);
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+        #ui-panel.hidden {
+            opacity: 0;
+            transform: scale(0.95);
+            pointer-events: none;
+        }
+
+        .row { display: flex; gap: 6px; align-items: center; }
+        .row > * { flex: 1; }
+        
+        button, select {
+            background: #252525;
+            color: #ddd;
+            border: 1px solid #444;
+            padding: 6px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+            box-sizing: border-box;
+        }
+        button:hover, select:hover { background: #3a3a3a; color: white; }
+        
+        label { font-size: 11px; color: #aaa; margin-bottom: -6px; }
+        
+        .slider-row { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+        input[type=range] { flex: 1; cursor: pointer; height: 4px; }
+        #speed-val { width: 35px; text-align: right; font-family: monospace; color: #4ade80;}
+        
+        .arrow-btn { 
+            background: #1e293b; font-size: 14px; font-weight: bold; border-color: #38bdf8; color: #38bdf8;
+            flex: 0 0 28px !important; padding: 4px 0; text-align: center;
+        }
+        .arrow-btn:hover { background: #38bdf8; color: #000; }
+        
+        /* Perturbation Engine Toggle & Tooltip */
+        .perturbation-container { display: flex; gap: 6px; align-items: stretch; }
+        #btn-perturbation {
+            background: #db2777;
+            color: white;
+            border-color: #f472b6;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+            flex: 1;
+        }
+        
+        .tooltip-container {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            background: #333;
+            border: 1px solid #555;
+            border-radius: 4px;
+            cursor: help;
+            font-weight: bold;
+            color: #ccc;
+        }
+        .tooltip-container:hover { background: #444; color: white; }
+        .tooltip-text {
+            visibility: hidden;
+            width: 240px;
+            background-color: #1e293b;
+            color: #e2e8f0;
+            text-align: left;
+            border-radius: 6px;
+            padding: 10px;
+            position: absolute;
+            z-index: 1000;
+            top: 125%;
+            right: 0; /* Aligning to right edge prevents clipping inside the panel */
+            border: 1px solid #475569;
+            font-size: 11px;
+            line-height: 1.4;
+            font-weight: normal;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.8);
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        .tooltip-container:hover .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+        }
+        
+        /* Scrollbar customization for the UI panel */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #444; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #666; }
+
+        /* Footer Text with Drop Shadow for high contrast */
+        #footer-text {
+            position: absolute;
+            bottom: 12px;
+            width: 100%;
+            text-align: center;
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 11px;
+            letter-spacing: 0.5px;
+            pointer-events: auto;
+            z-index: 100;
+            text-shadow: 0px 1px 3px rgba(0,0,0,1), 0px 0px 2px rgba(0,0,0,0.9);
+        }
+    </style>
+</head>
+<body>
+    
+    <div id="top-bar">
+        <button id="menu-toggle" class="top-btn">⚙️ Menu</button>
+        <div class="status" id="status-text">
+            <span class="stat-item"><span class="stat-label">FPS:</span> <span id="stat-fps">0</span></span>
+            <span class="stat-item"><span class="stat-label">Zoom:</span> <span id="stat-zoom">0.40x</span></span>
+            <span class="stat-item"><span class="stat-label">Iters:</span> <span id="stat-iters">4096</span></span>
+            <span class="stat-item"><span class="stat-label">X:</span> <span id="stat-x">0.000000000000</span></span>
+            <span class="stat-item"><span class="stat-label">Y:</span> <span id="stat-y">0.000000000000</span></span>
+        </div>
+    </div>
+
+    <!-- Starts hidden -->
+    <div id="ui-panel" class="hidden">
+        
+        <div class="perturbation-container">
+            <button id="btn-perturbation">Perturbation Engine: ON</button>
+            <div class="tooltip-container">?
+                <div class="tooltip-text">
+                    <b>Perturbation Theory</b> bypasses GPU hardware limits by calculating microscopic pixel distances from a central high-precision CPU orbit.<br><br>
+                    Turning it <b>OFF</b> forces standard 32-bit math, causing deep zooms to shatter into giant pixel blocks. Try turning it off past 100,000x zoom!
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <button id="reset-toggle">🔄 Reset View</button>
+            <button id="fullscreen-toggle">🔲 Fullscreen</button>
+        </div>
+        
+        <div class="row">
+            <button id="btn-play">Pause</button>
+            <button id="btn-dir">Zoom In</button>
+            <button id="btn-bounce" style="background: #2563eb; color: white;">Bounce: ON</button>
+        </div>
+
+        <label>Zoom Speed</label>
+        <div class="slider-row">
+            <button id="btn-speed-down" class="arrow-btn">⬅</button>
+            <input type="range" id="slider-speed" min="1" max="200" step="1" value="10">
+            <button id="btn-speed-up" class="arrow-btn">➡</button>
+            <span id="speed-val">10%</span>
+        </div>
+
+        <hr style="border: 0; border-top: 1px solid #333; width: 100%; margin: 4px 0;">
+
+        <label>Fractal Type / Shape</label>
+        <select id="sel-fractal">
+            <option value="0">Mandelbrot Set</option>
+            <option value="1">Julia Set (Douady Rabbit)</option>
+            <option value="2">Julia Set (San Marco Dragon)</option>
+            <option value="3">Julia Set (Dendrite)</option>
+            <option value="4">Julia Set (Spiral)</option>
+        </select>
+
+        <label>Color Theme</label>
+        <select id="sel-palette">
+            <option value="0">Monochrome</option>
+            <option value="1">Greyscale</option>
+            <option value="2" selected>Rainbow (Default)</option>
+            <option value="3">Wine</option>
+            <option value="4">Seafoam</option>
+            <option value="5">Mango</option>
+        </select>
+
+        <label>Iteration Quality</label>
+        <select id="sel-gpu">
+            <option value="high" >High (Native Res, 4096 Iters)</option>
+            <option value="med"selected>Medium (1x Res, 2048 Iters)</option>
+            <option value="low">Low (0.5x Res, 1024 Iters)</option>
+        </select>
+    </div>
+
+    <!-- Credit Text -->
+    <div id="footer-text">Version 1.0, August 2026, Developed by <a href="https://gmorcate.github.io/bio/index.html" style="text-decoration: none; color:#72a4f2;">GothicSun</a>. | AI assisted a.k.a. 100 junior developers crammed in a box. | Do you like this website? Buy me a Ko-fi! <span style="display: inline-block; vertical-align: middle; margin-left: 5px;">
+                <script type='text/javascript' src='https://storage.ko-fi.com/cdn/widget/Widget_2.js'></script><script type='text/javascript'>kofiwidget2.init('Support me on Ko-fi', '#72a4f2', 'A0Q024FNXK');kofiwidget2.draw();</script> 
+            </span>
+            </div> 
+    
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <script>
+        // 1. Setup Three.js
+        const scene = new THREE.Scene();
+        const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+        const renderer = new THREE.WebGLRenderer({ antialias: false });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // State Variables
+        let isPlaying = true;
+        let zoomIn = true;
+        let autoBounce = true;
+        let usePerturbation = true; 
+        let isDragging = false;
+        let previousMousePosition = { x: 0, y: 0 };
+        
+        let START_ZOOM = 0.4;
+        let MAX_ZOOM = 10000000000000;
+        let absoluteMaxIters = 4096;
+
+        // Coordinates configuration
+        const FRACTAL_CONFIGS = {
+            0: { isJulia: false, seedX: 0.0, seedY: 0.0, targetX: -0.743643887037, targetY: 0.131825904205 },
+            1: { isJulia: true,  seedX: -0.12256, seedY: 0.74486, targetX: 0.414965376942, targetY: 0.407294151646 },
+            2: { isJulia: true,  seedX: -0.75, seedY: 0.0, targetX: -0.502701791106, targetY: 0.063277944871 }, 
+            3: { isJulia: true,  seedX: 0.0, seedY: 1.0, targetX: 0.0, targetY: 0.0 },
+            4: { isJulia: true,  seedX: -0.7927, seedY: 0.1609, targetX: -0.174597489658, targetY: -0.238651045510 } 
+        };
+
+        let currentFractalType = 0;
+        let isJulia = FRACTAL_CONFIGS[0].isJulia;
+        let juliaSeedX = FRACTAL_CONFIGS[0].seedX;
+        let juliaSeedY = FRACTAL_CONFIGS[0].seedY;
+        let targetX = FRACTAL_CONFIGS[0].targetX;
+        let targetY = FRACTAL_CONFIGS[0].targetY;
+        let zoom = START_ZOOM;
+
+        const orbitData = new Float32Array(4096 * 4); 
+        const orbitTexture = new THREE.DataTexture(orbitData, 4096, 1, THREE.RGBAFormat, THREE.FloatType);
+        
+        function updateReferenceOrbit() {
+            let zx = isJulia ? targetX : 0.0;
+            let zy = isJulia ? targetY : 0.0;
+            let cx = isJulia ? juliaSeedX : targetX;
+            let cy = isJulia ? juliaSeedY : targetY;
+            
+            let escaped = false;
+            
+            for (let i = 0; i < absoluteMaxIters; i++) {
+                orbitData[i * 4 + 0] = zx;
+                orbitData[i * 4 + 1] = zy;
+                
+                if (!escaped) {
+                    let tempX = zx * zx - zy * zy + cx;
+                    zy = 2.0 * zx * zy + cy;
+                    zx = tempX;
+                    if (zx * zx + zy * zy > 100.0) escaped = true;
+                }
+            }
+            orbitTexture.needsUpdate = true;
+        }
+
+        updateReferenceOrbit();
+
+        // 2. GPU Shaders
+        const uniforms = {
+            u_resolution: { value: new THREE.Vector2(renderer.domElement.width, renderer.domElement.height) },
+            u_zoom: { value: zoom },
+            u_refOrbit: { value: orbitTexture },
+            u_maxIterations: { value: 250 },
+            u_palette: { value: 2 },
+            u_isJulia: { value: 0 },
+            
+            u_usePerturbation: { value: 1 },
+            u_target: { value: new THREE.Vector2(targetX, targetY) },
+            u_juliaSeed: { value: new THREE.Vector2(juliaSeedX, juliaSeedY) }
+        };
+
+        const vertexShader = `void main() { gl_Position = vec4(position, 1.0); }`;
+
+        const fragmentShader = `
+            precision highp float;
+            precision highp sampler2D;
+
+            uniform vec2 u_resolution;
+            uniform float u_zoom;
+            uniform sampler2D u_refOrbit;
+            uniform int u_maxIterations;
+            uniform int u_palette;
+            uniform int u_isJulia;
+            
+            uniform int u_usePerturbation;
+            uniform vec2 u_target;
+            uniform vec2 u_juliaSeed;
+
+            vec3 hsl2rgb(vec3 c) {
+                vec3 rgb = clamp(abs(mod(c.x*6.0+vec3(0.0,4.0,2.0),6.0)-3.0)-1.0, 0.0, 1.0);
+                return c.z + c.y * (rgb-0.5)*(1.0-abs(2.0*c.z-1.0));
+            }
+
+            void main() {
+                vec2 st = (gl_FragCoord.xy - u_resolution.xy * 0.5) / u_resolution.y;
+                vec2 Z = vec2(0.0);
+                float iter = 0.0;
+
+                // PATH A: ADVANCED PERTURBATION MATH
+                if (u_usePerturbation == 1) {
+                    vec2 deltaZ = u_isJulia == 1 ? (st / u_zoom) : vec2(0.0);
+                    vec2 deltaC = u_isJulia == 1 ? vec2(0.0) : (st / u_zoom);
+
+                    for (int i = 0; i < 4096; i++) {
+                        if (i >= u_maxIterations) break;
+
+                        float x = (float(i) + 0.5) / 4096.0;
+                        vec2 zRef = texture2D(u_refOrbit, vec2(x, 0.5)).xy;
+
+                        vec2 term1 = vec2(
+                            2.0 * (zRef.x * deltaZ.x - zRef.y * deltaZ.y),
+                            2.0 * (zRef.x * deltaZ.y + zRef.y * deltaZ.x)
+                        );
+
+                        vec2 term2 = vec2(
+                            deltaZ.x * deltaZ.x - deltaZ.y * deltaZ.y,
+                            2.0 * deltaZ.x * deltaZ.y
+                        );
+
+                        deltaZ = term1 + term2 + deltaC;
+                        Z = zRef + deltaZ; 
+
+                        if (Z.x * Z.x + Z.y * Z.y > 16.0) break;
+                        iter += 1.0;
+                    }
+                } 
+                // PATH B: STANDARD HARDWARE MATH
+                else {
+                    vec2 pixelCoord = (st / u_zoom) + u_target;
+                    vec2 C;
+                    
+                    if (u_isJulia == 1) {
+                        Z = pixelCoord; 
+                        C = u_juliaSeed; 
+                    } else {
+                        Z = vec2(0.0); 
+                        C = pixelCoord; 
+                    }
+
+                    for (int i = 0; i < 4096; i++) {
+                        if (i >= u_maxIterations) break;
+
+                        float tempX = Z.x * Z.x - Z.y * Z.y + C.x;
+                        Z.y = 2.0 * Z.x * Z.y + C.y;
+                        Z.x = tempX;
+
+                        if (Z.x * Z.x + Z.y * Z.y > 16.0) break;
+                        iter += 1.0;
+                    }
+                }
+
+                // RENDERING ENGINE
+                if (iter >= float(u_maxIterations) - 0.5) {
+                    gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+                } else {
+                    float log_z = length(Z);
+                    float smoothed = iter + 1.0 - log(log(log_z)) / log(2.0);
+                    float t = smoothed / 50.0; 
+                    
+                    vec3 color;
+                    
+                    // Wave smoothly oscillates between 0.0 and 1.0 based on depth
+                    float wave = 0.5 + 0.5 * cos(t * 6.28318);
+
+                    if (u_palette == 0) color = vec3(mod(smoothed, 2.0) > 1.0 ? 1.0 : 0.0); // Monochrome
+                    else if (u_palette == 1) color = vec3(fract(t * 1.5)); // Greyscale
+                    else if (u_palette == 2) color = hsl2rgb(vec3(t, 0.8, 0.5)); // Rainbow
+                    else if (u_palette == 3) {
+                        color = mix(vec3(0.55, 0.0, 0.0), vec3(0.5, 0.0, 0.5), wave); // Wine
+                    }
+                    else if (u_palette == 4) {
+                        color = mix(vec3(0.0, 1.0, 1.0), vec3(0.6, 0.98, 0.6), wave); // Seafoam
+                    }
+                    else if (u_palette == 5) {
+                        color = mix(vec3(1.0, 1.0, 0.0), vec3(1.0, 0.65, 0.0), wave); // Mango
+                    }
+                    
+                    gl_FragColor = vec4(color, 1.0);
+                }
+            }
+        `;
+
+        const material = new THREE.ShaderMaterial({ vertexShader, fragmentShader, uniforms });
+        const mesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), material);
+        scene.add(mesh);
+
+        // 3. UI Initializer & Force Reset (Prevents Browser Cache)
+        function forceFactoryReset() {
+            document.getElementById('sel-fractal').value = "0";
+            document.getElementById('sel-palette').value = "2";
+            document.getElementById('sel-gpu').value = "med";
+            document.getElementById('slider-speed').value = "10";
+            document.getElementById('speed-val').innerText = "10%";
+
+            isPlaying = true;
+            zoomIn = true;
+            autoBounce = true;
+            usePerturbation = true;
+
+            document.getElementById('btn-play').innerText = "Pause";
+            document.getElementById('btn-dir').innerText = "Zoom In";
+            
+            const btnBounce = document.getElementById('btn-bounce');
+            btnBounce.innerText = "Bounce: ON";
+            btnBounce.style.background = "#2563eb";
+            btnBounce.style.color = "white";
+
+            const btnPerturbation = document.getElementById('btn-perturbation');
+            btnPerturbation.innerText = "Perturbation Engine: ON";
+            btnPerturbation.style.background = "#db2777";
+            btnPerturbation.style.color = "white";
+            btnPerturbation.style.borderColor = "#f472b6";
+            
+            uniforms.u_palette.value = 2;
+            uniforms.u_usePerturbation.value = 1;
+            applyGPUQuality('high');
+            applyFractalSettings(0);
+        }
+
+        window.onload = forceFactoryReset;
+
+        // 4. UI Listeners
+        const uiPanel = document.getElementById('ui-panel');
+        document.getElementById('menu-toggle').addEventListener('click', () => {
+            uiPanel.classList.toggle('hidden');
+        });
+
+        document.getElementById('fullscreen-toggle').addEventListener('click', () => {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => console.log(err));
+            } else {
+                document.exitFullscreen();
+            }
+        });
+        
+        function applyFractalSettings(typeIndex) {
+            currentFractalType = typeIndex;
+            const config = FRACTAL_CONFIGS[typeIndex];
+            
+            isJulia = config.isJulia;
+            juliaSeedX = config.seedX;
+            juliaSeedY = config.seedY;
+            targetX = config.targetX;
+            targetY = config.targetY;
+            zoom = START_ZOOM;
+            
+            uniforms.u_isJulia.value = isJulia ? 1 : 0;
+            updateReferenceOrbit();
+        }
+
+        document.getElementById('reset-toggle').addEventListener('click', () => {
+            applyFractalSettings(currentFractalType);
+        });
+
+        const btnPerturbation = document.getElementById('btn-perturbation');
+        btnPerturbation.addEventListener('click', () => {
+            usePerturbation = !usePerturbation;
+            btnPerturbation.innerText = usePerturbation ? "Perturbation Engine: ON" : "Perturbation Engine: OFF";
+            btnPerturbation.style.background = usePerturbation ? "#db2777" : "#252525";
+            btnPerturbation.style.color = usePerturbation ? "white" : "#ddd";
+            btnPerturbation.style.borderColor = usePerturbation ? "#f472b6" : "#444";
+            uniforms.u_usePerturbation.value = usePerturbation ? 1 : 0;
+        });
+
+        const btnPlay = document.getElementById('btn-play');
+        const btnDir = document.getElementById('btn-dir');
+        const btnBounce = document.getElementById('btn-bounce');
+        
+        const speedSlider = document.getElementById('slider-speed');
+        const speedVal = document.getElementById('speed-val');
+        const btnSpeedDown = document.getElementById('btn-speed-down');
+        const btnSpeedUp = document.getElementById('btn-speed-up');
+
+        function updateSpeed(val) {
+            let newVal = parseInt(speedSlider.value) + val;
+            if (newVal < 1) newVal = 1;
+            if (newVal > 200) newVal = 200;
+            speedSlider.value = newVal;
+            speedVal.innerText = newVal + "%";
+        }
+        
+        speedSlider.addEventListener('input', (e) => speedVal.innerText = e.target.value + "%");
+        btnSpeedDown.addEventListener('click', () => updateSpeed(-1));
+        btnSpeedUp.addEventListener('click', () => updateSpeed(1));
+
+        btnPlay.addEventListener('click', () => {
+            isPlaying = !isPlaying;
+            btnPlay.innerText = isPlaying ? "Pause" : "Play";
+        });
+
+        btnDir.addEventListener('click', () => {
+            zoomIn = !zoomIn;
+            btnDir.innerText = zoomIn ? "Zoom In" : "Zoom Out";
+        });
+
+        btnBounce.addEventListener('click', () => {
+            autoBounce = !autoBounce;
+            btnBounce.innerText = autoBounce ? "Bounce: ON" : "Bounce: OFF";
+            btnBounce.style.background = autoBounce ? "#2563eb" : "#252525";
+            btnBounce.style.color = autoBounce ? "white" : "#ddd";
+        });
+
+        document.getElementById('sel-palette').addEventListener('change', (e) => {
+            uniforms.u_palette.value = parseInt(e.target.value);
+        });
+
+        document.getElementById('sel-fractal').addEventListener('change', (e) => {
+            applyFractalSettings(parseInt(e.target.value));
+        });
+
+        function applyGPUQuality(quality) {
+            let pixelRatio;
+            if (quality === 'high') { pixelRatio = window.devicePixelRatio; absoluteMaxIters = 4096; }
+            else if (quality === 'med') { pixelRatio = 1.0; absoluteMaxIters = 2048; }
+            else if (quality === 'low') { pixelRatio = 0.5; absoluteMaxIters = 1024; }
+            
+            renderer.setPixelRatio(pixelRatio);
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            uniforms.u_resolution.value.set(renderer.domElement.width, renderer.domElement.height);
+            updateReferenceOrbit();
+        }
+
+        document.getElementById('sel-gpu').addEventListener('change', (e) => applyGPUQuality(e.target.value));
+
+        // 5. Interaction / Panning
+        window.addEventListener('mousedown', (e) => {
+            if (e.target.tagName === 'BUTTON' || e.target.tagName === 'SELECT' || e.target.tagName === 'INPUT' || e.target.closest('#ui-panel') || e.target.closest('#top-bar')) return;
+            isDragging = true;
+            previousMousePosition = { x: e.clientX, y: e.clientY };
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (isDragging) {
+                const deltaX = e.clientX - previousMousePosition.x;
+                const deltaY = e.clientY - previousMousePosition.y;
+
+                targetX -= (deltaX / window.innerHeight) / zoom;
+                targetY += (deltaY / window.innerHeight) / zoom; 
+
+                previousMousePosition = { x: e.clientX, y: e.clientY };
+                updateReferenceOrbit(); 
+            }
+        });
+
+        window.addEventListener('mouseup', () => { isDragging = false; });
+        window.addEventListener('mouseleave', () => { isDragging = false; });
+        
+        window.addEventListener('wheel', (e) => {
+            if (e.deltaY < 0) zoom *= 1.2; else zoom /= 1.2;
+            if(zoom < START_ZOOM) zoom = START_ZOOM; 
+            updateReferenceOrbit();
+        });
+
+        window.addEventListener('resize', () => {
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            uniforms.u_resolution.value.set(renderer.domElement.width, renderer.domElement.height);
+        });
+
+        // 6. Stats formatters
+        function formatZoom(z) {
+            if (z < 10) return z.toFixed(2) + "x";
+            if (z < 1000) return Math.floor(z) + "x";
+            const exp = Math.floor(Math.log10(z));
+            const base = (z / Math.pow(10, exp)).toFixed(2);
+            return `${base}e${exp}`;
+        }
+        
+        let lastTime = performance.now();
+        let frames = 0;
+        const fpsEl = document.getElementById('stat-fps');
+        const zoomEl = document.getElementById('stat-zoom');
+        const itersEl = document.getElementById('stat-iters');
+        const xEl = document.getElementById('stat-x');
+        const yEl = document.getElementById('stat-y');
+
+        // 7. Main Loop
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            frames++;
+            let now = performance.now();
+            if (now - lastTime >= 1000) {
+                fpsEl.innerText = frames;
+                frames = 0;
+                lastTime = now;
+            }
+
+            if (isPlaying) {
+                const speedPercent = parseFloat(speedSlider.value);
+                const currentSpeedMultiplier = 1.0 + (speedPercent / 100) * 0.015;
+
+                if (zoomIn) zoom *= currentSpeedMultiplier;
+                else zoom /= currentSpeedMultiplier;
+
+                if (autoBounce) {
+                    if (zoom >= MAX_ZOOM && zoomIn) { 
+                        zoom = MAX_ZOOM; 
+                        zoomIn = false; 
+                        document.getElementById('btn-dir').innerText = "Zoom Out"; 
+                    } 
+                    else if (zoom <= START_ZOOM && !zoomIn) { 
+                        zoom = START_ZOOM; 
+                        zoomIn = true; 
+                        document.getElementById('btn-dir').innerText = "Zoom In"; 
+                    }
+                }
+            }
+
+            uniforms.u_zoom.value = zoom;
+            uniforms.u_target.value.set(targetX, targetY);
+            uniforms.u_juliaSeed.value.set(juliaSeedX, juliaSeedY);
+
+            const depthFactor = Math.max(1, zoom);
+            const newIterations = 250 + Math.floor(Math.log10(depthFactor) * 150);
+            uniforms.u_maxIterations.value = Math.min(absoluteMaxIters, newIterations);
+
+            zoomEl.innerText = formatZoom(zoom);
+            itersEl.innerText = uniforms.u_maxIterations.value;
+            
+            xEl.innerText = targetX.toFixed(12);
+            yEl.innerText = targetY.toFixed(12);
+
+            renderer.render(scene, camera);
+        }
+        
+        animate();
+    </script>
+</body>
+</html>
