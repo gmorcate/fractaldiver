@@ -222,9 +222,9 @@
         <label>Zoom Speed</label>
         <div class="slider-row">
             <button id="btn-speed-down" class="arrow-btn">⬅</button>
-            <input type="range" id="slider-speed" min="1" max="200" step="1" value="10">
+            <input type="range" id="slider-speed" min="1" max="200" step="1" value="1">
             <button id="btn-speed-up" class="arrow-btn">➡</button>
-            <span id="speed-val">10%</span>
+            <span id="speed-val">1%</span>
         </div>
 
         <hr style="border: 0; border-top: 1px solid #333; width: 100%; margin: 4px 0;">
@@ -248,11 +248,11 @@
             <option value="5">Mango</option>
         </select>
 
-        <label>Iteration Quality</label>
+        <label>Iteration Depth</label>
         <select id="sel-gpu">
-            <option value="high" >High (Native Res, 4096 Iters)</option>
-            <option value="med"selected>Medium (1x Res, 2048 Iters)</option>
-            <option value="low">Low (0.5x Res, 1024 Iters)</option>
+            <option value="high" >High (4096 Iters)</option>
+            <option value="med"selected>Medium (2048 Iters)</option>
+            <option value="low"selected>Low (1024 Iters)</option>
         </select>
     </div>
 
@@ -462,9 +462,9 @@
         function forceFactoryReset() {
             document.getElementById('sel-fractal').value = "0";
             document.getElementById('sel-palette').value = "2";
-            document.getElementById('sel-gpu').value = "med";
-            document.getElementById('slider-speed').value = "10";
-            document.getElementById('speed-val').innerText = "10%";
+            document.getElementById('sel-gpu').value = "low";
+            document.getElementById('slider-speed').value = "1";
+            document.getElementById('speed-val').innerText = "1%";
 
             isPlaying = true;
             zoomIn = true;
@@ -487,7 +487,7 @@
             
             uniforms.u_palette.value = 2;
             uniforms.u_usePerturbation.value = 1;
-            applyGPUQuality('high');
+            applyGPUQuality('low');
             applyFractalSettings(0);
         }
 
