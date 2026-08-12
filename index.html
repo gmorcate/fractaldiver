@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Fractal Diver - Gothic Sun</title>
     <style>
-        body { margin: 0; overflow: hidden; background-color: #000; font-family: sans-serif; }
+        body { margin: 0; overflow: hidden; background-color: #000; font-family: sans-serif; touch-action: none; }
         canvas { display: block; }
         
         /* Top Bar */
@@ -280,6 +280,7 @@
         let usePerturbation = true; 
         let isDragging = false;
         let previousMousePosition = { x: 0, y: 0 };
+        let previousPinchDistance = -1;
         
         let START_ZOOM = 0.4;
         let MAX_ZOOM = 10000000000000;
@@ -630,6 +631,81 @@
             uniforms.u_resolution.value.set(renderer.domElement.width, renderer.domElement.height);
         });
 
+// --- TOUCH CONTROLS (MOBILE) ---
+
+// Helper function to get distance between two fingers
+function getPinchDistance(e) {
+    const dx = e.touches[0].clientX - e.touches[1].clientX;
+    const dy = e.touches[0].clientY - e.touches[1].clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+}
+
+window.addEventListener('touchstart', (e) => {
+    // Ignore touches on UI elements
+    if (e.target.tagName === 'BUTTON' || e.target.tagName === 'SELECT' || e.target.tagName === 'INPUT' || e.target.closest('#ui-panel') || e.target.closest('#top-bar')) return;
+
+    if (e.touches.length === 1) {
+        // One finger: start panning
+        isDragging = true;
+        previousMousePosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    } else if (e.touches.length === 2) {
+        // Two fingers: start pinching (disable panning)
+        isDragging = false;
+        previousPinchDistance = getPinchDistance(e);
+    }
+}, { passive: false });
+
+window.addEventListener('touchmove', (e) => {
+    // Ignore touches on UI elements
+    if (e.target.tagName === 'BUTTON' || e.target.tagName === 'SELECT' || e.target.tagName === 'INPUT' || e.target.closest('#ui-panel') || e.target.closest('#top-bar')) return;
+    
+    e.preventDefault(); // Crucial: prevents native page scroll/refresh
+
+    if (e.touches.length === 1 && isDragging) {
+        // Handle Panning
+        const deltaX = e.touches[0].clientX - previousMousePosition.x;
+        const deltaY = e.touches[0].clientY - previousMousePosition.y;
+
+        targetX -= (deltaX / window.innerHeight) / zoom;
+        targetY += (deltaY / window.innerHeight) / zoom; 
+
+        previousMousePosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+        updateReferenceOrbit(); 
+        
+    } else if (e.touches.length === 2) {
+        // Handle Pinch-to-Zoom
+        const currentPinchDistance = getPinchDistance(e);
+        
+        if (previousPinchDistance > 0) {
+            const zoomFactor = currentPinchDistance / previousPinchDistance;
+            zoom *= zoomFactor;
+            if (zoom < START_ZOOM) zoom = START_ZOOM;
+            
+            updateReferenceOrbit();
+        }
+        previousPinchDistance = currentPinchDistance;
+    }
+}, { passive: false });
+
+window.addEventListener('touchend', (e) => {
+    if (e.touches.length === 0) {
+        // All fingers lifted
+        isDragging = false;
+        previousPinchDistance = -1;
+    } else if (e.touches.length === 1) {
+        // One finger left, revert smoothly back to panning
+        isDragging = true;
+        previousMousePosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+        previousPinchDistance = -1;
+    }
+});
+
+window.addEventListener('touchcancel', () => {
+    isDragging = false;
+    previousPinchDistance = -1;
+});
+
+        
         // 6. Stats formatters
         function formatZoom(z) {
             if (z < 10) return z.toFixed(2) + "x";
