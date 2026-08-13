@@ -441,13 +441,13 @@
                     else if (u_palette == 1) color = vec3(fract(t * 1.5)); // Greyscale
                     else if (u_palette == 2) color = hsl2rgb(vec3(t, 0.8, 0.5)); // Rainbow
                     else if (u_palette == 3) {
-                        color = mix(vec3(0.55, 0.0, 0.0), vec3(0.5, 0.0, 0.5), wave); // Wine
+                        color = mix(vec3(0.302, 0.0, 0.071), vec3(0.094, 0.0, 0.180), wave); // Wine
                     }
                     else if (u_palette == 4) {
-                        color = mix(vec3(0.0, 1.0, 1.0), vec3(0.6, 0.98, 0.6), wave); // Seafoam
+                        color = mix(vec3(0.180, 0.545, 0.341)), vec3(0.0, 0.0, 0.502), wave); // Seafoam
                     }
                     else if (u_palette == 5) {
-                        color = mix(vec3(1.0, 1.0, 0.0), vec3(1.0, 0.65, 0.0), wave); // Mango
+                        color = mix(vec3(0.502, 0.0, 0.0), vec3(1.0, 1.0, 0.0), wave); // Mango
                     }
                     
                     gl_FragColor = vec4(color, 1.0);
